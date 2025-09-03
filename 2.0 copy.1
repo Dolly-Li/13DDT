@@ -1,0 +1,343 @@
+import tkinter as tk
+from tkinter import messagebox
+from datetime import datetime
+import sqlite3
+
+#user databases class
+class UserDatabase:
+    def __init__(self):
+        #connect to SQLite databases
+        self.conn = sqlite3.connect("dtimer_users.db")
+        self.cursor = self.conn.cursor()
+        
+        #create a table for storing users if it does not exist already
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                password TEXT NOT NULL
+            )
+        """)
+        self.conn.commit()
+
+    def create_account(self, username, password):
+        try:
+            self.cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
+            self.conn.commit()
+            return True
+        #if username is already taken then it will appear on the screen
+        except sqlite3.IntegrityError:
+            return False
+
+    def verify_user(self, username, password):
+        self.cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+        return self.cursor.fetchone() 
+
+#clsoe the databases connetction when the object is deleted
+    def __del__(self):
+        self.conn.close()
+
+#Main application's class
+class DTimerApp:
+    def __init__(self, root):
+        #the application's window
+        self.root = root
+        self.root.title("D-TIMER")
+        self.root.geometry("600x500")
+        self.root.configure(bg="#c6d4c6")
+
+        #timer state variables 
+        self.running = False
+        self.paused = False
+        self.dark_mode = False
+        self.total_seconds = 0 * 60
+        
+        #initialize databases
+        self.db = UserDatabase()
+        
+        self.create_password_page()
+        self.create_login_page()
+        self.create_timer_page()
+        self.create_account_page()
+        
+        #start updating clock (datetime shown)
+        self.update_clock()
+
+#Login page
+    def create_login_page(self):
+        self.login_frame = tk.Frame(self.root, bg="#c6d4c6")
+        self.login_frame.pack(fill="both", expand=True)
+
+        #top frame with datetime
+        top_frame = tk.Frame(self.login_frame, bg="#c6d4c6")
+        top_frame.pack(fill="x", pady=10, padx=20)
+
+        self.login_time_label = tk.Label(top_frame, font=("Arial", 14, "bold"), bg="#c6d4c6")
+        self.login_time_label.pack(side="right")
+
+        self.login_date_label = tk.Label(top_frame, font=("Arial", 10), bg="#c6d4c6")
+        self.login_date_label.pack(side="right")
+
+        #center frame with login form
+        center_frame = tk.Frame(self.login_frame, bg="#c6d4c6")
+        center_frame.pack(pady=30, expand=True)
+      
+        #login logo and labels
+        tk.Label(center_frame, text="D-TIMER", font=("Arial", 32, "bold"), bg="#c6d4c6").pack(pady=10)
+        tk.Label(center_frame, text="👤", font=("Arial", 32), bg="#c6d4c6").pack()
+        tk.Label(center_frame, text="Login", font=("Arial", 16, "bold"), bg="#c6d4c6").pack(pady=5)
+
+        #username and password input fields
+        self.username_entry = tk.Entry(center_frame, font=("Arial", 12), justify="center")
+        self.username_entry.pack(pady=5, ipadx=50, ipady=5)
+
+        self.password_entry = tk.Entry(center_frame, font=("Arial", 12), show="*", justify="center")
+        self.password_entry.pack(pady=5, ipadx=50, ipady=5)
+  
+        #buttons for login and account creation
+        tk.Button(center_frame, text="Login", command=self.attempt_login).pack(pady=10)
+        tk.Button(center_frame, text="Create an Account", command=self.show_create_account_page).pack(pady=5)
+
+        #forgot password option
+        tk.Button(center_frame, text="*Forgotten the password?", font=("Arial", 9), bg="#436952").pack()
+
+        #motivational text
+        tk.Label(self.login_frame,
+                 text="COME AND USE THE TIMER\nUSING TIMER WISELY TO MANAGE YOUR TIME",
+                 font=("Arial", 7), bg="#c6d4c6", justify="left").place(x=20, y=390)
+
+    def show_login_page(self):
+        self.create_account_frame.pack_forget()
+        self.login_frame.pack(fill="both", expand=True)
+
+#Forgot password page
+    def create_password_page(self):
+        self.forgotten_password_frame = tk.Frame(self.root,bg="#c6d4c6")
+
+        top_frame = tk.Frame(self.forgotten_password_frame,bg="#c6d4c6")
+        top_frame.pack(fill="x",pady=10,padx=10)
+        tk.Button(top_frame,text="← Back",command=self.show_login_page).pack(side="left")  
+        
+        center_frame =tk.Frame(self.create_password_page)
+        center_frame.pack(pady=30,expand=True)
+
+        tk.Label(center_frame,text="Create a new passowrd",font=("Arial",20,"bold"),bg="#c6d4c6").pack(pady=10)
+
+        self.new_password_entry = tk.Entry(center_frame,font=("Arial",12),justify="center")
+        self.new_password_entry.pack(pady=5,ipadx=50,ipady=5)
+
+        tk.Button(center_frame,text="Create",command=self.handle_create_password).pack(pady=10)
+
+    def show_create_password(self):
+        self.login_frame.pack_forget()
+        self.create_account_frame.pack(fill="both", expand=True)
+   
+    def handle_create_account(self):
+        username = self.new_username_entry.get()
+        password = self.new_password_entry.get()
+        if self.db.create_account(username, password):
+            messagebox.showinfo("Account Created", "Account successfully created.")
+            self.show_login_page()
+        else:
+            messagebox.showerror("Error", "Username already exists.","Please choose a new one.")
+            
+      
+
+#Create account page
+    def create_account_page(self):
+        self.create_account_frame = tk.Frame(self.root, bg="#c6d4c6")
+
+        top_frame = tk.Frame(self.create_account_frame, bg="#c6d4c6")
+        top_frame.pack(fill="x", pady=10, padx=20)
+        tk.Button(top_frame, text="← Back", command=self.show_login_page).pack(side="left")
+
+        center_frame = tk.Frame(self.create_account_frame, bg="#c6d4c6")
+        center_frame.pack(pady=30, expand=True)
+
+        tk.Label(center_frame, text="Create Account", font=("Arial", 20, "bold"), bg="#c6d4c6").pack(pady=10)
+
+        self.new_username_entry = tk.Entry(center_frame,font=("Arial", 12), justify="center")
+        self.new_username_entry.pack(pady=5, ipadx=50, ipady=5)
+
+        self.new_password_entry = tk.Entry(center_frame,font=("Arial", 12), show="*", justify="center")
+        self.new_password_entry.pack(pady=5, ipadx=50, ipady=5)
+
+        tk.Button(center_frame, text="Create", command=self.handle_create_account).pack(pady=10)
+
+    def show_create_account_page(self):
+        self.login_frame.pack_forget()
+        self.create_account_frame.pack(fill="both", expand=True)
+
+    def handle_create_account(self):
+        username = self.new_username_entry.get()
+        password = self.new_password_entry.get()
+        if self.db.create_account(username, password):
+            messagebox.showinfo("Account Created", "Account successfully created.")
+            self.show_login_page()
+        else:
+            messagebox.showerror("Error", "Username already exists.")
+
+#Login validation
+    def attempt_login(self):
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+        if self.db.verify_user(username, password):
+            self.login_frame.pack_forget()
+            self.timer_frame.pack(fill="both", expand=True)
+            messagebox.showinfo("Login Successfully","Welcome")
+        else:
+            messagebox.showerror("Login Failed", "Invalid username or password.")
+    def attempt_lgoin(self):
+        username = self.username_entry
+    
+#Timer page
+    def create_timer_page(self):
+        self.timer_frame = tk.Frame(self.root, bg="#c6d4c6")
+        #top functions bar with buttons
+        top_frame = tk.Frame(self.timer_frame, bg="#c6d4c6")
+        top_frame.pack(fill='x', pady=10, padx=20)
+        top_frame = tk.Frame(self.root,bg="#c6d4c6")
+        top_frame.pack(fill="x",pady=10,padx=15)
+
+
+       # TOP-LEFT: FUNCTIONS 
+        tk.Button(top_frame, text="Weather").pack(side="left", padx=3)
+        tk.Button(top_frame, text="Setting").pack(side="left", padx=3)
+        self.mode_button = tk.Button(top_frame,text = "On",command= self.dark_theme)
+        self.mode_button.pack(side="left", padx=3)
+        tk.Button(top_frame, text="WiFi").pack(side="left", padx=3)
+       
+        #clock labels
+        self.time_label = tk.Label(top_frame, font=("Arial", 14, "bold"), bg="#c6d4c6")
+        self.time_label.pack(side="right")
+
+        self.date_label = tk.Label(top_frame, font=("Arial", 10), bg="#c6d4c6")
+        self.date_label.pack(side="right")
+
+        #timer display
+        self.timer_label = tk.Label(self.timer_frame, text=self.format_time(), font=("Courier", 48), bg="#c6d4c6")
+        self.timer_label.pack(pady=10)
+
+        #time input fields
+        time_input_frame = tk.Frame(self.timer_frame, bg="#c6d4c6")
+        time_input_frame.pack(pady=5)
+
+        tk.Label(time_input_frame, text="Hours:", bg="#c6d4c6").grid(row=0, column=0)
+        self.hour_entry = tk.Entry(time_input_frame, width=3)
+        self.hour_entry.grid(row=0, column=1)
+
+        tk.Label(time_input_frame, text="Minutes:", bg="#c6d4c6").grid(row=0, column=2)
+        self.minute_entry = tk.Entry(time_input_frame, width=3)
+        self.minute_entry.grid(row=0, column=3)
+
+        tk.Label(time_input_frame, text="Seconds:", bg="#c6d4c6").grid(row=0, column=4)
+        self.second_entry = tk.Entry(time_input_frame, width=3)
+        self.second_entry.grid(row=0, column=5)
+
+        #control buttons
+        btn_frame = tk.Frame(self.timer_frame, bg="#c6d4c6")
+        btn_frame.pack(pady=10)
+
+        tk.Button(btn_frame, text="Start", command=self.start_timer).grid(row=0, column=0, padx=5)
+        self.pause_button = tk.Button(btn_frame, text="Pause", command=self.toggle_pause)
+        self.pause_button.grid(row=0, column=1, padx=5)
+        tk.Button(btn_frame,text="Stop",command=self.start_timer).grid(row=0,column=2,padx=5)
+        tk.Button(btn_frame, text="Reset", command=self.reset_timer).grid(row=0, column=3, padx=5)
+
+        #motivational text
+        tk.Label(self.timer_frame, text="LET'S GO!!!\nHOW LONG CAN U BE CONCENTRATED?",
+                 font=("Helvetica", 10), bg="#c6d4c6").pack(pady=10)
+
+#Clock updater
+    def update_clock(self):
+        now = datetime.now()
+        
+        #update labels on both login and timer pages
+        self.login_time_label.config(text=now.strftime("%H:%M"))
+        self.login_date_label.config(text=now.strftime("%A\n%B %d"))
+        self.time_label.config(text=now.strftime("%H:%M"))
+        self.date_label.config(text=now.strftime("%A\n%B %d"))
+        self.root.after(1000, self.update_clock)
+
+#Timer functions
+    def format_time(self):
+        mins, secs = divmod(self.total_seconds, 60)
+        hours, mins = divmod(mins, 60)
+        return f"{hours:02}:{mins:02}:{secs:02}"
+
+    def start_timer(self):
+        if not self.running:
+            self.running = True
+            self.paused = False
+            self.countdown()
+
+    def toggle_pause(self):
+        if self.running:
+            self.paused = not self.paused
+            self.pause_button.config(text="Resume" if self.paused else "Pause")
+            if not self.paused:
+                self.countdown()
+
+    def reset_timer(self):
+        try:
+            h = int(self.hour_entry.get()) if self.hour_entry.get() else 0
+            m = int(self.minute_entry.get()) if self.minute_entry.get() else 0
+            s = int(self.second_entry.get()) if self.second_entry.get() else 0
+            self.total_seconds = h * 3600 + m * 60 + s
+            self.running = False
+            self.paused = False
+            self.pause_button.config(text="Pause")
+            self.timer_label.config(text=self.format_time())
+        except ValueError:
+            self.timer_label.config(text="Invalid Input")
+
+    def countdown(self):
+        if not self.running or self.paused:
+            return
+        if self.total_seconds <= 0:
+            self.running = False
+            self.timer_label.config(text="DONE!")
+            return
+        self.total_seconds -= 1
+        self.timer_label.config(text=self.format_time())
+        self.root.after(1000, self.countdown)
+
+#Dark mode toggle
+    def dark_theme(self): 
+      self.dark_mode = not self.dark_mode
+      if self.dark_mode:
+        bg = "#000000"
+        fg = "#ffffff"
+        self.mode_button.config(text="Off")
+      else:
+        bg = "#c6d4c6"
+        fg = "#000000"
+        self.mode_button.config(text="On")
+
+      #update root and frames
+      self.root.configure(bg=bg)
+      self.login_frame.configure(bg=bg)
+      self.timer_frame.configure(bg=bg)
+
+      #update all widgets in login and timer frames
+      for frame in [self.login_frame, self.timer_frame]:
+        for widget in frame.winfo_children():
+            try:
+                widget.configure(bg=bg, fg=fg)
+            except:
+                pass 
+      self.timer_label.config(bg=bg, fg=fg)
+      
+# Also update the top right datetime labels
+      self.time_label.config(bg=bg, fg=fg)
+      self.date_label.config(bg=bg, fg=fg)
+      self.login_time_label.config(bg=bg, fg=fg)
+      self.login_date_label.config(bg=bg, fg=fg)
+
+    
+# RUN THE APP
+if __name__ == "__main__":
+    root = tk.Tk()
+    root.geometry("800x500")
+    app = DTimerApp(root)
+    root.mainloop()
