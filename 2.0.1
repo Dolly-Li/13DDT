@@ -50,6 +50,15 @@ class DTimerApp:
         self.create_account_page()
         self.update_clock()
 
+    def toggle_password(self):
+      "show or hide the password"
+      if self.password_entry.cget("show") == "":
+         self.password_entry.config(show+"*")
+         self.toggle_btn.config(text="👁️")
+      else:
+         self.password_entry.config("show=")
+         self.toggle_btn.config(text="🙈")
+
     def create_login_page(self):
         self.login_frame = tk.Frame(self.root, bg="#c6d4c6")
         self.login_frame.pack(fill="both", expand=True)
@@ -270,3 +279,4 @@ if __name__ == "__main__":
     root.geometry("800x500")
     app = DTimerApp(root)
     root.mainloop()
+
