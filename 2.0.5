@@ -62,15 +62,15 @@ class DTimerApp:
         self.create_help_page()
         self.setting_frame.pack_forget()  
 
-        # 默认显示登录页
+        # The login page is displayed by default
         self.show_login_page()
 
-        # 更新时间
+        # update time
         self.update_clock()
 
-    # ---------------- 工具：递归主题 ----------------
+    # ---------------- Tool----------------
     def apply_theme(self, widget, bg, fg):
-    # Frame 也要改背景
+    # Frame 
      if isinstance(widget, (tk.Frame, tk.LabelFrame)):
         widget.configure(bg=bg)
 
@@ -94,18 +94,16 @@ class DTimerApp:
       elif theme_name == "Pink":
         bg, fg = "#ffcccc", "#E66BC5"
       else:
-        return  # 防止异常
+        return  # Prevent anomalies
 
-    # 应用颜色到 root
+    # apply color to root
       self.apply_theme(self.root, bg, fg)
 
-    # 遍历所有页面
       for frame in [self.login_frame, self.timer_frame,
                   self.create_account_frame, self.forgotten_password_frame,
                   self.setting_frame]:
         self.apply_theme(frame, bg, fg)
 
-    # 修复关键标签
         self.timer_label.config(bg=bg, fg=fg)
         self.time_label.config(bg=bg, fg=fg)
         self.date_label.config(bg=bg, fg=fg)
@@ -370,7 +368,7 @@ class DTimerApp:
               width=15, bg="#e8e8e8",
               command=lambda: self.apply_color_theme("Pink")).pack(pady=5)
 
-    # 返回按钮
+    # back button
       tk.Button(self.theme_frame, text="← Back", command=self.show_setting_page).pack(pady=20)
      
     def create_help_page(self):
@@ -495,7 +493,7 @@ class DTimerApp:
  
         self.apply_theme(self.root, bg, fg)   # 从 root 开始递归
 
-        # 遍历所有页面
+        
         for frame in [self.login_frame, self.timer_frame, self.create_account_frame, self.forgotten_password_frame]:
             self.apply_theme(frame, bg, fg)
 
@@ -513,3 +511,4 @@ if __name__ == "__main__":
     root.geometry("800x800")
     app = DTimerApp(root)
     root.mainloop()
+
